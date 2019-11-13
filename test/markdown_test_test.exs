@@ -1,8 +1,6 @@
 defmodule MarkdownTestTest do
   use ExUnit.Case
-  doctest MarkdownTest
+  use MarkdownTest
 
-  test "greets the world" do
-    assert MarkdownTest.hello() == :world
-  end
+  test_markdown("README.md")
 end

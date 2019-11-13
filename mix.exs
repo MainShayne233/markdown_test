@@ -17,7 +17,7 @@ defmodule MarkdownTest.MixProject do
 
   defp deps do
     [
-      {:mix_test_watch, "~> 0.9.0", only: :dev, runtime: false},
+      {:mix_test_watch, "~> 0.9.0", only: :dev, runtime: false}
     ]
   end
 end
