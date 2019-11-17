@@ -1,5 +1,8 @@
 # MarkdownTest
 
+[![Build Status](https://secure.travis-ci.org/MainShayne233/markdown_test.svg?branch=master "Build Status")](http://travis-ci.org/MainShayne233/markdown_test)
+[![Coverage Status](https://coveralls.io/repos/github/MainShayne233/markdown_test/badge.svg?branch=master)](https://coveralls.io/github/MainShayne233/markdown_test?branch=master)
+
 Test the Elixir code in your markdown!
 
 ## Usage
@@ -21,7 +24,7 @@ In any test module, `use MarkdownTest` to pull in the `test_markdown/1` macro an
 ```elixir
 defmodule MyLibraryTest do
   use MarkdownTest
-  
+
   test_markdown("README.md")
 end
 ```
