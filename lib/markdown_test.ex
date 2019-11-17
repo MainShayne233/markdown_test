@@ -1,4 +1,6 @@
 defmodule MarkdownTest do
+  @moduledoc File.read!("README.md")
+
   defmodule TestBlock do
     defstruct [:preface_code, cases: []]
   end
@@ -15,6 +17,11 @@ defmodule MarkdownTest do
     end
   end
 
+  @doc """
+  This macro will test the assertions defined in the markdown file
+  located at the given path.
+  """
+  @spec test_markdown(path :: Path.t()) :: Macro.t()
   defmacro test_markdown(path) do
     file = fetch_file!(path)
 
