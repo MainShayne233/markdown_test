@@ -2,6 +2,7 @@
 
 [![Build Status](https://secure.travis-ci.org/MainShayne233/markdown_test.svg?branch=master "Build Status")](http://travis-ci.org/MainShayne233/markdown_test)
 [![Coverage Status](https://coveralls.io/repos/github/MainShayne233/markdown_test/badge.svg?branch=master)](https://coveralls.io/github/MainShayne233/markdown_test?branch=master)
+[![Hex Version](http://img.shields.io/hexpm/v/markdown_test.svg?style=flat)](https://hex.pm/packages/markdown_test)
 
 Test the Elixir code in your markdown!
 
