@@ -5,8 +5,9 @@ defmodule MarkdownTest do
 
   @test_block_start "<!--- MARKDOWN_TEST_START -->"
   @test_block_end "<!--- MARKDOWN_TEST_END -->"
-
-  @markdown_code_delimiter_pattern ~r/```(elixir)?/
+  @iex_prompt "iex> "
+  @iex_prompt_cont "...> "
+  @markdown_code_ticks "```"
 
   defmacro __using__([]) do
     quote do
@@ -17,27 +18,56 @@ defmodule MarkdownTest do
   defmacro test_markdown(path) do
     file = fetch_file!(path)
 
-    test_blocks = parse_test_blocks!(file)
+    lines =
+      file
+      |> String.split("\n")
+      |> Enum.with_index()
+      |> Enum.map(fn {code, index} -> {String.trim(code), index + 1} end)
+
+    test_blocks = parse_test_blocks!(lines)
 
     describes =
       test_blocks
-      |> Enum.with_index()
-      |> Enum.map(fn {test_block, index} ->
+      |> Enum.map(fn test_block ->
         tests =
           test_block.cases
-          |> Enum.with_index()
-          |> Enum.map(fn {{expression, expected}, index} ->
+          |> Enum.map(fn {expression, expected} ->
+            quoted_expression = compile_block(expression, path)
+            display_expression = display_block(expression)
+            quoted_expected = compile_block(expected, path)
+            starting_line = starting_line(expression)
+
             quote do
-              test "case: #{unquote(index)}" do
-                assert unquote(expression) === unquote(expected)
+              test "markdown assertion starting at #{unquote(starting_line)} in #{unquote(path)}" do
+                actual = unquote(quoted_expression)
+                expected = unquote(quoted_expected)
+
+                assert actual === expected, """
+                Markdown test assertion failed for case in #{unquote(path)} starting on line #{
+                  unquote(starting_line)
+                }
+
+                I was expecting the following expression:
+
+                #{unquote(display_expression)}
+
+                To exactly equal:
+
+                #{inspect(expected)}
+
+                But instead I got:
+
+                #{inspect(actual)}
+                """
               end
             end
           end)
 
         quote do
-          describe "block #{unquote(index)}" do
-            unquote(test_block.preface_code)
+          defmodule unquote(test_module_name(__CALLER__.module, test_block, path)) do
+            use ExUnit.Case
 
+            unquote(compile_block(test_block.preface_code, path))
             unquote_splicing(tests)
           end
         end
@@ -48,18 +78,76 @@ defmodule MarkdownTest do
     end
   end
 
-  defp parse_test_blocks!(file) do
-    file
+  defp test_module_name(parent_module, test_block, path) do
+    starting_line =
+      test_block.cases
+      |> hd()
+      |> elem(0)
+      |> starting_line()
+
+    path_module_chunk =
+      path
+      |> String.split(".")
+      |> hd()
+      |> Macro.camelize()
+
+    module_subname =
+      String.to_atom("MarkdownTest.#{path_module_chunk}.BlockAtLine#{starting_line}")
+
+    Module.concat([parent_module, module_subname])
+  end
+
+  defp display_block(block) do
+    block
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.join("\n")
+  end
+
+  defp compile_block([], _path), do: :ok
+
+  defp compile_block(block, path) do
+    code_string = display_block(block)
+
+    starting_line = starting_line(block)
+
+    Code.string_to_quoted!(code_string, file: path, line: starting_line)
+  end
+
+  defp starting_line(block) do
+    block
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.min()
+  end
+
+  defp parse_test_blocks!(lines) do
+    lines
     |> parse_raw_code_blocks!()
     |> Enum.map(&parse_code_block!/1)
   end
 
-  defp parse_raw_code_blocks!(file) do
-    file
-    |> String.split(@test_block_start)
-    |> Enum.drop(1)
-    |> Enum.map(&(String.split(&1, @test_block_end) |> hd()))
-    |> Enum.map(&String.replace(&1, @markdown_code_delimiter_pattern, ""))
+  defp parse_raw_code_blocks!(lines) do
+    {raw_blocks, :init} =
+      Enum.reduce(lines, {[], :init}, fn
+        {@test_block_start <> _, _}, {blocks, :init} ->
+          {blocks, :in_block}
+
+        {@markdown_code_ticks <> _, _}, {blocks, :in_block} ->
+          {[[] | blocks], :in_block}
+
+        {@test_block_end <> _, _}, {blocks, :in_block} ->
+          {blocks, :init}
+
+        line, {[block | blocks], :in_block} ->
+          {[[line | block] | blocks], :in_block}
+
+        _, {blocks, :init} ->
+          {blocks, :init}
+      end)
+
+    raw_blocks
+    |> Enum.reject(&Enum.empty?/1)
+    |> Enum.map(&Enum.reverse/1)
+    |> Enum.reverse()
   end
 
   defp parse_code_block!(raw_code_block) do
@@ -73,41 +161,38 @@ defmodule MarkdownTest do
   end
 
   defp parse_preface_code!(raw_code_block) do
-    raw_code_block
-    |> String.split("iex>")
-    |> hd()
-    |> String.trim()
-    |> Code.string_to_quoted!()
+    Enum.take_while(raw_code_block, fn {code, _} ->
+      not match?(@iex_prompt <> _, code)
+    end)
   end
 
   defp parse_test_cases!(raw_code_block) do
     {raw_test_cases, _} =
       raw_code_block
-      |> String.split("\n")
-      |> Enum.map(&String.trim/1)
       |> Enum.reduce({[], :init}, fn
-        "iex> " <> expression_start, {cases, :init} ->
-          {[{expression_start, nil} | cases], :expression}
+        {@iex_prompt <> expression_start, line_number}, {cases, :init} ->
+          {[{[{expression_start, line_number}], nil} | cases], :expression}
 
         _, {cases, :init} ->
           {cases, :init}
 
-        "...> " <> expression_chunk, {[{current_expression, nil} | cases], :expression} ->
-          {[{current_expression <> "\n" <> expression_chunk, nil} | cases], :expression}
+        {@iex_prompt_cont <> expression_chunk, line_number},
+        {[{current_expression, nil} | cases], :expression} ->
+          {[{[{expression_chunk, line_number} | current_expression], nil} | cases], :expression}
 
         expected_start, {[{current_expression, nil} | cases], :expression} ->
-          {[{current_expression, expected_start} | cases], :expected}
+          {[{current_expression, [expected_start]} | cases], :expected}
 
-        "" <> _, {cases, :expected} ->
+        {"", _}, {cases, :expected} ->
           {cases, :init}
 
         expected_chunk, {[{current_expression, current_expected} | cases], :expected} ->
-          {[{current_expression, current_expected <> "\n" <> expected_chunk} | cases]}
+          {[{current_expression, [expected_chunk | current_expected]} | cases], :expected}
       end)
 
     raw_test_cases
-    |> Enum.map(fn {raw_expression, raw_expected} ->
-      {Code.string_to_quoted!(raw_expression), Code.string_to_quoted!(raw_expected)}
+    |> Enum.map(fn {expression, expected} ->
+      {Enum.reverse(expression), Enum.reverse(expected)}
     end)
     |> Enum.reverse()
   end

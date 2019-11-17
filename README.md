@@ -21,7 +21,20 @@ iex> x = 1
 3
 
 iex> MyModule.add(1, 2)
-4
+3
+```
+<!--- MARKDOWN_TEST_END -->
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule OtherModule do
+  def sweet_map, do: %{sweet: :cool}
+end
+
+iex> OtherModule.sweet_map()
+%{
+  sweet: :cool
+}
 ```
 <!--- MARKDOWN_TEST_END -->
 
