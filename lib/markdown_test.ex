@@ -83,6 +83,19 @@ defmodule MarkdownTest do
     quote do
       (unquote_splicing(describes))
     end
+  rescue
+    error in RuntimeError ->
+      raise %CompileError{
+        description: """
+
+
+        Something went wrong when testing the markdown in #{path}.
+
+        Underyling error:
+
+        #{error.message}
+        """
+      }
   end
 
   defp test_module_name(parent_module, test_block, path) do
@@ -198,8 +211,17 @@ defmodule MarkdownTest do
       end)
 
     raw_test_cases
-    |> Enum.map(fn {expression, expected} ->
-      {Enum.reverse(expression), Enum.reverse(expected)}
+    |> Enum.map(fn
+      {expression, nil} ->
+        raise %RuntimeError{
+          message: """
+          Could not determine expected value for example starting on
+          line #{starting_line(expression)} of the markdown file.
+          """
+        }
+
+      {expression, expected} ->
+        {Enum.reverse(expression), Enum.reverse(expected)}
     end)
     |> Enum.reverse()
   end
