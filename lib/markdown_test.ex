@@ -33,7 +33,7 @@ defmodule MarkdownTest do
 
     test_blocks = parse_test_blocks!(lines)
 
-    describes =
+    sections =
       test_blocks
       |> Enum.map(fn test_block ->
         tests =
@@ -81,7 +81,7 @@ defmodule MarkdownTest do
       end)
 
     quote do
-      (unquote_splicing(describes))
+      (unquote_splicing(sections))
     end
   rescue
     error in RuntimeError ->
