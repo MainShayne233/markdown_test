@@ -37,38 +37,53 @@ defmodule MarkdownTest do
       test_blocks
       |> Enum.map(fn test_block ->
         tests =
-          test_block.cases
-          |> Enum.map(fn {expression, expected} ->
-            quoted_expression = compile_block(expression, path)
-            display_expression = display_block(expression)
-            quoted_expected = compile_block(expected, path)
-            starting_line = starting_line(expression)
+          case test_block do
+            %TestBlock{cases: [_ | _] = cases} ->
+              Enum.map(cases, fn {expression, expected} ->
+                quoted_expression = compile_block(expression, path)
+                display_expression = display_block(expression)
+                quoted_expected = compile_block(expected, path)
+                starting_line = starting_line(expression)
 
-            quote do
-              test "markdown assertion starting at #{unquote(starting_line)} in #{unquote(path)}" do
-                actual = unquote(quoted_expression)
-                expected = unquote(quoted_expected)
+                quote do
+                  test "markdown assertion starting at #{unquote(starting_line)} in #{
+                         unquote(path)
+                       }" do
+                    actual = unquote(quoted_expression)
+                    expected = unquote(quoted_expected)
 
-                assert actual === expected, """
-                Markdown test assertion failed for case in #{unquote(path)} starting on line #{
-                  unquote(starting_line)
-                }
+                    assert actual === expected, """
+                    Markdown test assertion failed for case in #{unquote(path)} starting on line #{
+                      unquote(starting_line)
+                    }
 
-                I was expecting the following expression:
+                    I was expecting the following expression:
 
-                #{unquote(display_expression)}
+                    #{unquote(display_expression)}
 
-                To exactly equal:
+                    To exactly equal:
 
-                #{inspect(expected)}
+                    #{inspect(expected)}
 
-                But instead I got:
+                    But instead I got:
 
-                #{inspect(actual)}
-                """
-              end
-            end
-          end)
+                    #{inspect(actual)}
+                    """
+                  end
+                end
+              end)
+
+            %TestBlock{cases: [], preface_code: [{_, starting_line} | _]} ->
+              [
+                quote do
+                  test "markdown compile-check starting at #{unquote(starting_line)} in #{
+                         unquote(path)
+                       }" do
+                    assert true
+                  end
+                end
+              ]
+          end
 
         quote do
           defmodule unquote(test_module_name(__CALLER__.module, test_block, path)) do
@@ -100,10 +115,13 @@ defmodule MarkdownTest do
 
   defp test_module_name(parent_module, test_block, path) do
     starting_line =
-      test_block.cases
-      |> hd()
-      |> elem(0)
-      |> starting_line()
+      case test_block do
+        %TestBlock{cases: [{block, _} | _]} ->
+          starting_line(block)
+
+        %TestBlock{preface_code: [{_, line_number} | _], cases: []} ->
+          line_number
+      end
 
     path_module_chunk =
       path

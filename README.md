@@ -77,3 +77,15 @@ iex> MyModule.add(1, 2)
 3
 ```
 <!--- MARKDOWN_TEST_END -->
+
+If you don't add any assertion code, `markdown_test` will just verify that the code snippit compiles, like:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+%{
+  this: %{
+    "should" => :compile
+  }
+}
+```
+<!--- MARKDOWN_TEST_END -->
