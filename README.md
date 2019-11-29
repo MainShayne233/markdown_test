@@ -15,7 +15,7 @@ Add `:markdown_test` as a dependency in your `mix.exs` file:
 
 defp deps do
   [
-    {:markdown_test, "0.1.0", only: :test}
+    {:markdown_test, "0.1.1", only: :test}
   ]
 end
 ```
