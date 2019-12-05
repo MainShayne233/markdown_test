@@ -50,20 +50,19 @@ defmodule MarkdownTest do
                          unquote(path)
                        }" do
                     actual = unquote(quoted_expression)
-                    expected = unquote(quoted_expected)
 
-                    assert actual === expected, """
+                    assert match?(unquote(quoted_expected), actual), """
                     Markdown test assertion failed for case in #{unquote(path)} starting on line #{
                       unquote(starting_line)
                     }
 
-                    I was expecting the following expression:
+                    I was expecting the result of the following expression:
 
                     #{unquote(display_expression)}
 
-                    To exactly equal:
+                    To match:
 
-                    #{inspect(expected)}
+                    #{unquote(Macro.to_string(quoted_expected))}
 
                     But instead I got:
 

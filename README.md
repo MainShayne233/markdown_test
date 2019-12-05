@@ -78,7 +78,25 @@ iex> MyModule.add(1, 2)
 ```
 <!--- MARKDOWN_TEST_END -->
 
-If you don't add any assertion code, `markdown_test` will just verify that the code snippit compiles, like:
+`markdown_test` will assert that the expression and the expected value match according to [Elixir's pattern matching](https://elixir-lang.org/getting-started/pattern-matching.html).
+
+Therefore, you can write a test like this:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule MyModule do
+  def big_result do
+    {:ok, List.duplicate("hey", 1000)}
+  end
+end
+
+iex> MyModule.big_result()
+{:ok, ["hey" | _]}
+```
+<!--- MARKDOWN_TEST_END -->
+
+
+If you don't add any assertion code, `markdown_test` will just verify that the code snippet compiles, like:
 
 <!--- MARKDOWN_TEST_START -->
 ```elixir
